@@ -10,6 +10,8 @@ Original file is located at
 import pandas as pd
 import re
 
+from RegexData import search_patterns, split_patterns, replace_regx_dict
+
 
 # Functions
 def refactor_cols(my_df):
@@ -23,43 +25,6 @@ def refactor_cols(my_df):
     return my_df
 
 
-def extract_patterns():
-    patterns_df = pd.read_csv("./bank_regexes.csv")
-    patterns_dict = patterns_df.to_dict()
-
-    global split_patterns
-    split_patterns = [r'\d{3}-\d{3}.*\d{4}',
-                      r'.com',
-                      r'\*+',
-                      r'\W+\s+co',
-                      r'#+']
-    # split_patterns = [v for k, v in patterns_dict['split'].items()]
-
-    global search_patterns
-    search_patterns = [re.compile(r'7.*eleven'),
-                       re.compile(r'target'),
-                       re.compile(r'amc'),
-                       re.compile(r'build-a-bear'),
-                       re.compile(r'party\s+city'),
-                       re.compile(r'jimmy\s+johns'),
-                       re.compile(r'uchealth'),
-                       re.compile(r'netflix'),
-                       re.compile(r'amazon'),
-                       re.compile(r'amzn'),
-                       re.compile(r'adobe'),
-                       re.compile(r'zappos'),
-                       re.compile(r'panda\s+express'),
-                       re.compile(r'prime\s+video'),
-                       re.compile(r'king soop'),
-                       re.compile(r'nintendo'),
-                       re.compile(r'apple'),
-                       re.compile(r'starbucks'),
-                       re.compile(r'wal.*mart'),
-                       re.compile(r'taco\s+bell'),
-                       re.compile(r'doordash')]
-    # search_patterns = [v for k, v in patterns_dict['search'].items()]
-
-
 def sum_col(raw_df, my_col):
     drop_cols = [c for c in raw_df.columns if c not in ['amount', my_col]]
 
@@ -68,11 +33,14 @@ def sum_col(raw_df, my_col):
 
     my_df[my_col] = my_df[my_col].apply(lambda x: x.lower())
 
-    for patt1 in split_patterns:
-        my_df[my_col] = my_df[my_col].apply(lambda x: re.split(patt1, x)[0] if re.split(patt1, x) else x)
+    for split_patt in split_patterns:
+        my_df[my_col] = my_df[my_col].apply(lambda x: re.split(split_patt, x)[0] if re.split(split_patt, x) else x)
 
-    for patt2 in search_patterns:
-        my_df[my_col] = my_df[my_col].apply(lambda x: re.search(patt2, x).group(0) if re.search(patt2, x) else x)
+    for search_patt in search_patterns:
+        my_df[my_col] = my_df[my_col].apply(lambda x: re.search(search_patt, x).group(0) if re.search(search_patt, x) else x)
+
+    for patt, rep_str in replace_regx_dict.items():
+        my_df[my_col] = my_df[my_col].apply(lambda x: rep_str if re.search(patt, x) else x)
 
     my_df = my_df.groupby(my_col).agg('sum')
     my_df.sort_values(by=[my_col], inplace=True)
@@ -82,9 +50,6 @@ def sum_col(raw_df, my_col):
 
 
 def main():
-    # Get regexes for column string transformations
-    extract_patterns()
-
     # Debit Card Analysis
     debit_df = pd.read_csv("./debit_transactions_Jan-Aug_2023.csv")
     debit_df = refactor_cols(debit_df)
